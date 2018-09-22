@@ -66,6 +66,7 @@ export default class ReactNativeSelectize extends React.Component {
         onClose={onClose}
         text={id}
         style={style}
+        close={false}
       />
     ),
     textInputProps: {},
@@ -81,6 +82,7 @@ export default class ReactNativeSelectize extends React.Component {
       items: this._getNormalizedItems(props),
       selectedItems: this._getNormalizedSelectedItems(props),
       text: '',
+      selectedItemId: '',
       textWidth: 0
     };
     this.defaultTextInputProps = {
@@ -118,7 +120,9 @@ export default class ReactNativeSelectize extends React.Component {
     this._onSubmitEditing(this.props.textInputProps.onSubmitEditing);
   }
 
-  getSelectedItems = () => this.state.selectedItems;
+  getSelectedItems = () => {
+    return this.state.selectedItems;
+  }
 
   clearSelectedItems = () => {
     const selectedItems = {
@@ -143,21 +147,24 @@ export default class ReactNativeSelectize extends React.Component {
     });
   }
 
-  getValue = () => this.state.text;
+  getValue = () => {
+    return this.state.text;
+  }
 
   _getNormalized = ({ itemId }, items) => {
-    let itemsCopy = [...items];
-    if (itemsCopy.every(item => typeof item === 'string')) {
-      itemsCopy = itemsCopy.reduce((acc, value) => {
-        return acc.concat({ [itemId]: value });
-      }, []);
-    }
-    if (itemsCopy.every(item => typeof item[itemId] === 'number')) {
-      itemsCopy = itemsCopy.map(item => {
-        item[itemId] = String(item[itemId]);
-        return item;
-      });
-    }
+    console.log('_getNormalized', this.props.selectedItems, items);
+    // let itemsCopy = [...items];
+    // if (itemsCopy.every(item => typeof item === 'string')) {
+    //   itemsCopy = itemsCopy.reduce((acc, value) => {
+    //     return acc.concat({ [itemId]: value });
+    //   }, []);
+    // }
+    // if (itemsCopy.every(item => typeof item[itemId] === 'number')) {
+    //   itemsCopy = itemsCopy.map(item => {
+    //     item[itemId] = String(item[itemId]);
+    //     return item;
+    //   });
+    // }
     const itemSchema = new schema.Entity('item', undefined, { idAttribute: itemId });
     let normalizedItems = normalize(itemsCopy, [itemSchema]);
     if (!normalizedItems.entities.item) {
@@ -166,9 +173,13 @@ export default class ReactNativeSelectize extends React.Component {
     return normalizedItems;
   }
 
-  _getNormalizedItems = ({ itemId, items }) => this._getNormalized({ itemId }, items);
+  _getNormalizedItems = ({ itemId, items }) => { 
+    return this._getNormalized({ itemId }, items);
+  }
 
-  _getNormalizedSelectedItems = ({ itemId, selectedItems }) => this._getNormalized({ itemId }, selectedItems);
+  _getNormalizedSelectedItems = ({ itemId, selectedItems }) => {
+    return this._getNormalized({ itemId }, selectedItems);
+  }
 
   _call() {
     const [callback, ...params] = arguments;
@@ -186,10 +197,13 @@ export default class ReactNativeSelectize extends React.Component {
   };
 
   _onSubmitEditing = callback => {
+    console.log("_onSubmitEditing props: ", this.props);
+    console.log("_onSubmitEditing state: ", this.state);
     const { itemId, trimOnSubmit } = this.props;
     const { items } = this.state;
     const selectedItems = this._copySelectedItems();
     const text = trimOnSubmit ? this.state.text.trim() : this.state.text;
+    const sub = this.state.selectedItemId;
 
     if (this._call(callback, text) === false) {
       return;
@@ -198,17 +212,18 @@ export default class ReactNativeSelectize extends React.Component {
       return;
     }
 
-    if (!selectedItems.entities.item.hasOwnProperty(text)) {
-      const item = items.entities.item.hasOwnProperty(text) ? { ...items.entities.item[text] } : { [itemId]: text };
+    if (!selectedItems.entities.item[sub]) {
+      const item = items.entities.item[sub];
 
-      selectedItems.result.push(text);
-      selectedItems.entities.item[text] = item;
+      selectedItems.result.push(sub);
+      selectedItems.entities.item[sub] = item;
       this._setSelectedItems(selectedItems);
     }
     this.setState({ text: '' });
   };
 
   _onFocus = callback => {
+    console.log('_onFocus');
     const { text } = this.state;
 
     clearInterval(this.cancelBlur);
@@ -226,12 +241,12 @@ export default class ReactNativeSelectize extends React.Component {
     }, 150);
   };
 
-  _onChipClose = text => {
-    const selectedItems = this._copySelectedItems();
+  _onChipClose = (item) => {
+    const { selectedItems } = this._copySelectedItems();
 
-    selectedItems.result = selectedItems.result.filter(item => item !== text);
-    delete selectedItems.entities.item[text];
-    this._setSelectedItems(selectedItems);
+    selectedItems.result = selectedItems.result.filter(sub => sub !== item.sub);
+    delete selectedItems.entities.item[item.sub];
+    this._copySelectedItems();
   };
 
   _onLayout = e => {
@@ -239,28 +254,28 @@ export default class ReactNativeSelectize extends React.Component {
     this.setState({ textWidth: width });
   };
 
-  _selectItem = id => {
-    this.setState({ text: id }, this.submit);
+  _selectItem = ({ email, sub, name }) => {
+    this.setState({ text: email || name, selectedItemId: sub }, this.submit);
     this._textInput.focus();
   };
 
   _getRow = id => {
     const { listRowStyle, renderRow } = this.props;
     const { items } = this.state;
-
-    return renderRow(id, () => this._selectItem(id), items.entities.item[id], listRowStyle);
+    console.log('_getRow: ', items, items.entities.item[id].email);
+    return renderRow(id, () => this._selectItem(items.entities.item[id]), items.entities.item[id], listRowStyle);
   };
 
   _filterItems = searchTerm => {
     const { items, selectedItems } = this.state;
+    console.log('_filterItems', items, selectedItems);
     const filteredItems = { result: [], entities: { item: {} } };
-    const { filterOnKey } = this.props;
+    
 
     items.result.forEach(id => {
-      const parts = searchTerm.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&').trim().split(/[ \-:]+/);
+      const parts = searchTerm.trim().split(/[ \-:]+/);
       const regex = new RegExp(`(${parts.join('|')})`, 'ig');
-      const filterOnValue = filterOnKey ? items.entities.item[id][filterOnKey] : id;
-      if (!selectedItems.entities.item[id] && regex.test(filterOnValue)) {
+      if (!selectedItems.entities.item[id] && (regex.test(items.entities.item[id].name) || regex.test(items.entities.item[id].email) )) {
         filteredItems.result.push(id);
         filteredItems.entities.item[id] = { ...items.entities.item[id] };
       }
@@ -320,7 +335,7 @@ export default class ReactNativeSelectize extends React.Component {
 
   render() {
     const { autoReflow, chipStyle, chipIconStyle, containerStyle, inputContainerStyle, textInputProps, errorColor,
-            renderChip, tintColor, label, error, middleComponent } = this.props;
+      renderChip, tintColor, label, error, middleComponent } = this.props;
     const { style: textInputStyleFromProps, onChangeText, onSubmitEditing, onFocus, onBlur, placeholder,
             ...otherTextInputProps } = textInputProps;
     const { selectedItems, text, textWidth } = this.state;
@@ -335,8 +350,11 @@ export default class ReactNativeSelectize extends React.Component {
       <View style={[styles.container, containerStyle]}>
         {!!label && <Text style={labelStyle}>{label}</Text>}
         <View style={[styles.inputContainer, inputContainerBorderStyle, inputContainerStyle]}>
-          {selectedItems.result.map(id =>
-            renderChip(id, () => this._onChipClose(id), selectedItems.entities.item[id], chipStyle, chipIconStyle)
+          {selectedItems.result.map(sub => {
+            let item = selectedItems.entities.item[sub]
+            console.log('item', selectedItems.entities.item[sub]);
+            return renderChip(sub, () => this._onChipClose(item), item, chipStyle, chipIconStyle)
+          }
           )}
           <TextInput
             ref={c => this._textInput = c}

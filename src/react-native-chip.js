@@ -1,11 +1,12 @@
 'use strict';
 
 import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View, Image } from 'react-native';
 
 export default class ReactNativeChip extends React.PureComponent {
   static defaultProps = {
     onClose: () => {},
+    close: true,
     text: ''
   };
 
@@ -15,17 +16,20 @@ export default class ReactNativeChip extends React.PureComponent {
   }
 
   render() {
-    const { iconStyle, onClose, style, text } = this.props;
+    const { iconStyle, onClose, style, text, avatar, close } = this.props;
 
     return (
       <View style={[styles.root, style]}>
         <View style={styles.container}>
+          <View style={styles.listIcon}>
+            <Image style={{width: 25, height: 25}} source={{uri: avatar}} />
+          </View>
           <Text style={styles.text} numberOfLines={1}>{text}</Text>
-          <TouchableOpacity
+          {close && <TouchableOpacity
             style={[styles.iconWrapper, iconStyle]}
             onPress={onClose}>
             <Text style={[styles.icon, this.isIOS ? styles.iconIOS : styles.iconAndroid]}>✕</Text>
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </View>
       </View>
     );
@@ -39,7 +43,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0e0e0',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    height: 28,
+    height: 35,
     marginBottom: 4,
     marginRight: 4
   },
@@ -72,5 +76,15 @@ const styles = StyleSheet.create({
   iconAndroid: {
     fontSize: 13,
     lineHeight: 15
+  },
+  listIcon: {
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    height: 30,
+    width: 30,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10
   }
 });
