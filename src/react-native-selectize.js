@@ -135,10 +135,11 @@ export default class ReactNativeSelectize extends React.Component {
   };
 
   _copySelectedItems = () => {
-    return {
+    let selectedItems = {
       result: [...this.state.selectedItems.result],
       entities: { ...this.state.selectedItems.entities }
-    };
+    }
+    return selectedItems;
   }
 
   _setSelectedItems = selectedItems => {
@@ -153,7 +154,7 @@ export default class ReactNativeSelectize extends React.Component {
 
   _getNormalized = ({ itemId }, items) => {
     console.log('_getNormalized', this.props.selectedItems, items);
-    // let itemsCopy = [...items];
+    let itemsCopy = [...items];
     // if (itemsCopy.every(item => typeof item === 'string')) {
     //   itemsCopy = itemsCopy.reduce((acc, value) => {
     //     return acc.concat({ [itemId]: value });
@@ -242,11 +243,11 @@ export default class ReactNativeSelectize extends React.Component {
   };
 
   _onChipClose = (item) => {
-    const { selectedItems } = this._copySelectedItems();
+    const selectedItems = this._copySelectedItems();
 
     selectedItems.result = selectedItems.result.filter(sub => sub !== item.sub);
     delete selectedItems.entities.item[item.sub];
-    this._copySelectedItems();
+    this._setSelectedItems(selectedItems);
   };
 
   _onLayout = e => {
